@@ -87,6 +87,15 @@ public class ErrorProneOptionsTest {
   }
 
   @Test
+  public void handlesErrorProneTagSeverityFlags() {
+    String[] args = {"-XepTag:Style:OFF", "-XepTag:Style:ERROR"};
+    ErrorProneOptions options = ErrorProneOptions.processArgs(args);
+    ImmutableMap<String, Severity> expectedTagSeverityMap =
+        ImmutableMap.of("Style", Severity.ERROR);
+    assertThat(options.getTagSeverityMap()).isEqualTo(expectedTagSeverityMap);
+  }
+
+  @Test
   public void handlesErrorProneCustomFlags() {
     String[] args = {"-XepOpt:Flag1", "-XepOpt:Flag2=Value2", "-XepOpt:Flag3=a,b,c"};
     ErrorProneOptions options = ErrorProneOptions.processArgs(args);

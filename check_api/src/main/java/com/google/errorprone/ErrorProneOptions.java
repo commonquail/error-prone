@@ -47,6 +47,7 @@ public class ErrorProneOptions {
 
   private static final String PREFIX = "-Xep";
   private static final String SEVERITY_PREFIX = "-Xep:";
+  private static final String SEVERITY_TAG_PREFIX = "-XepTag:";
   private static final String PATCH_CHECKS_PREFIX = "-XepPatchChecks:";
   private static final String PATCH_OUTPUT_LOCATION = "-XepPatchLocation:";
   private static final String PATCH_IMPORT_ORDER_PREFIX = "-XepPatchImportOrder:";
@@ -146,6 +147,7 @@ public class ErrorProneOptions {
 
   private final ImmutableList<String> remainingArgs;
   private final ImmutableMap<String, Severity> severityMap;
+  private final ImmutableMap<String, Severity> tagSeverityMap;
   private final boolean ignoreUnknownChecks;
   private final boolean disableWarningsInGeneratedCode;
   private final boolean disableAllWarnings;
@@ -163,6 +165,7 @@ public class ErrorProneOptions {
 
   private ErrorProneOptions(
       ImmutableMap<String, Severity> severityMap,
+      ImmutableMap<String, Severity> tagSeverityMap,
       ImmutableList<String> remainingArgs,
       boolean ignoreUnknownChecks,
       boolean disableWarningsInGeneratedCode,
@@ -179,6 +182,7 @@ public class ErrorProneOptions {
       boolean ignoreSuppressionAnnotations,
       boolean ignoreLargeCodeGenerators) {
     this.severityMap = severityMap;
+    this.tagSeverityMap = tagSeverityMap;
     this.remainingArgs = remainingArgs;
     this.ignoreUnknownChecks = ignoreUnknownChecks;
     this.disableWarningsInGeneratedCode = disableWarningsInGeneratedCode;
@@ -202,6 +206,10 @@ public class ErrorProneOptions {
 
   public ImmutableMap<String, Severity> getSeverityMap() {
     return severityMap;
+  }
+
+  public ImmutableMap<String, Severity> getTagSeverityMap() {
+    return tagSeverityMap;
   }
 
   public boolean ignoreUnknownChecks() {
@@ -265,19 +273,30 @@ public class ErrorProneOptions {
     private boolean ignoreSuppressionAnnotations = false;
     private boolean ignoreLargeCodeGenerators = true;
     private final Map<String, Severity> severityMap = new LinkedHashMap<>();
+    private final Map<String, Severity> tagSeverityMap = new LinkedHashMap<>();
     private final ErrorProneFlags.Builder flagsBuilder = ErrorProneFlags.builder();
     private final PatchingOptions.Builder patchingOptionsBuilder = PatchingOptions.builder();
     private Pattern excludedPattern;
 
     private void parseSeverity(String arg) {
+      parseSeverity(arg, SEVERITY_PREFIX, severityMap);
+    }
+
+    private void parseTagSeverity(String arg) {
+      parseSeverity(arg, SEVERITY_TAG_PREFIX, tagSeverityMap);
+    }
+
+    private static void parseSeverity(
+        String arg, String severityPrefix, Map<String, Severity> severityByTargetName) {
       // Strip prefix
-      String remaining = arg.substring(SEVERITY_PREFIX.length());
+      String remaining = arg.substring(severityPrefix.length());
       // Split on ':'
       List<String> parts = Splitter.on(':').splitToList(remaining);
       if (parts.size() > 2 || parts.get(0).isEmpty()) {
         throw new InvalidCommandLineOptionException("invalid flag: " + arg);
       }
-      String checkName = parts.get(0);
+      // Either a check name or a check tag.
+      String targetName = parts.get(0);
       Severity severity;
       if (parts.size() == 1) {
         severity = Severity.DEFAULT;
@@ -289,7 +308,7 @@ public class ErrorProneOptions {
               "invalid flag: " + arg + " (" + parts.get(1) + " was not a valid severity)");
         }
       }
-      severityMap.put(checkName, severity);
+      severityByTargetName.put(targetName, severity);
     }
 
     public void parseFlag(String flag) {
@@ -359,6 +378,7 @@ public class ErrorProneOptions {
     public ErrorProneOptions build(ImmutableList<String> remainingArgs) {
       return new ErrorProneOptions(
           ImmutableMap.copyOf(severityMap),
+          ImmutableMap.copyOf(tagSeverityMap),
           remainingArgs,
           ignoreUnknownChecks,
           disableWarningsInGeneratedCode,
@@ -425,6 +445,8 @@ public class ErrorProneOptions {
         default -> {
           if (arg.startsWith(SEVERITY_PREFIX)) {
             builder.parseSeverity(arg);
+          } else if (arg.startsWith(SEVERITY_TAG_PREFIX)) {
+            builder.parseTagSeverity(arg);
           } else if (arg.startsWith(ErrorProneFlags.PREFIX)) {
             builder.parseFlag(arg);
           } else if (arg.startsWith(PATCH_OUTPUT_LOCATION)) {
