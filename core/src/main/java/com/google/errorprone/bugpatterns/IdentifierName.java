@@ -60,6 +60,7 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.util.Name;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import javax.inject.Inject;
@@ -103,10 +104,14 @@ public final class IdentifierName extends BugChecker
 
   private final boolean allowInitialismsInTypeName;
 
+  private final Optional<Pattern> allowTypeNameMatchingRegex;
+
   @Inject
   IdentifierName(ErrorProneFlags flags) {
     this.allowInitialismsInTypeName =
         flags.getBoolean("IdentifierName:AllowInitialismsInTypeName").orElse(false);
+    this.allowTypeNameMatchingRegex =
+        flags.get("IdentifierName:AllowTypeNameMatchingRegex").map(Pattern::compile);
   }
 
   @Override
@@ -292,6 +297,9 @@ public final class IdentifierName extends BugChecker
   }
 
   private boolean isConformantTypeName(String name) {
+    if (allowTypeNameMatchingRegex.map(p -> p.matcher(name).matches()).orElse(false)) {
+        return true;
+    }
     return !name.contains("_")
         && isUpperCase(name.charAt(0))
         && (allowInitialismsInTypeName || !PROBABLE_INITIALISM.matcher(name).find());

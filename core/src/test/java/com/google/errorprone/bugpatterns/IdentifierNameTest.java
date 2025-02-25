@@ -659,6 +659,32 @@ public class IdentifierNameTest {
   }
 
   @Test
+  public void className_badPattern_allowed() {
+    helper
+        .setArgs("-XepOpt:IdentifierName:AllowTypeNameMatchingRegex=.+(IT|MX?Bean)")
+        .addSourceLines(
+            "SomethingMBean.java", //
+            "interface SomethingMBean {",
+            "}")
+        .addSourceLines(
+            "SomethingIT.java", //
+            "class SomethingIT {",
+            "}")
+        .doTest();
+  }
+
+  @Test
+  public void className_badPattern_allowedTakesPrecedence() {
+    helper
+        .setArgs("-XepOpt:IdentifierName:AllowTypeNameMatchingRegex=foo_bar")
+        .addSourceLines(
+            "Test.java", //
+            "class foo_bar {",
+            "}")
+        .doTest();
+  }
+
+  @Test
   public void enumName() {
     helper
         .addSourceLines(
