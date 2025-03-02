@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.errorprone.BugPattern.SeverityLevel;
 import com.google.errorprone.ErrorProneOptions.Severity;
 import com.google.errorprone.RefactoringCollection.RefactoringResult;
+import com.google.errorprone.SeverityTarget.CheckName;
 import com.google.errorprone.scanner.ErrorProneScannerTransformer;
 import com.google.errorprone.scanner.ScannerSupplier;
 import com.google.errorprone.util.ASTHelpers;
@@ -88,7 +89,8 @@ public class ErrorProneAnalyzer implements TaskListener {
                               .filter(
                                   bci -> {
                                     String name = bci.canonicalName();
-                                    return epOptions.getSeverityMap().get(name) != Severity.OFF
+                                    return epOptions.getSeverityMap().get(new CheckName(name))
+                                            != Severity.OFF
                                         && (namedCheckers.isEmpty()
                                             || namedCheckers.contains(name));
                                   });

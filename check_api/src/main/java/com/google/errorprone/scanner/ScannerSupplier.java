@@ -33,7 +33,10 @@ import com.google.errorprone.BugPattern.SeverityLevel;
 import com.google.errorprone.ErrorProneFlags;
 import com.google.errorprone.ErrorProneOptions;
 import com.google.errorprone.ErrorProneOptions.Severity;
+import com.google.errorprone.SeverityTarget;
 import com.google.errorprone.InvalidCommandLineOptionException;
+import com.google.errorprone.SeverityTarget.CheckName;
+import com.google.errorprone.SeverityTarget.TagName;
 import com.google.errorprone.annotations.CheckReturnValue;
 import com.google.errorprone.bugpatterns.BugChecker;
 import java.util.Arrays;
@@ -141,7 +144,7 @@ public abstract class ScannerSupplier implements Supplier<Scanner> {
    */
   @CheckReturnValue
   public ScannerSupplier applyOverrides(ErrorProneOptions errorProneOptions) {
-    ImmutableMap<String, Severity> severityOverrides = errorProneOptions.getSeverityMap();
+    ImmutableMap<SeverityTarget, Severity> severityOverrides = errorProneOptions.getSeverityMap();
     if (severityOverrides.isEmpty()
         && errorProneOptions.getFlags().isEmpty()
         && !errorProneOptions.isEnableAllChecksAsWarnings()
@@ -193,42 +196,23 @@ public abstract class ScannerSupplier implements Supplier<Scanner> {
 
     // Process overrides
     severityOverrides.forEach(
-        (checkName, newSeverity) -> {
-          if (!checksByAltName.containsKey(checkName)) {
-            if (errorProneOptions.ignoreUnknownChecks()) {
-              return;
+        (severityTarget, newSeverity) -> {
+          if (severityTarget instanceof CheckName override) {
+            var checkName = override.value();
+            if (!checksByAltName.containsKey(checkName)) {
+              if (errorProneOptions.ignoreUnknownChecks()) {
+                return;
+              }
+              throw new InvalidCommandLineOptionException(
+                  checkName + " is not a valid checker name");
             }
-            throw new InvalidCommandLineOptionException(checkName + " is not a valid checker name");
-          }
-          for (BugCheckerInfo check : checksByAltName.get(checkName)) {
-            switch (newSeverity) {
-              case OFF -> {
-                if (!check.disableable()) {
-                  throw new InvalidCommandLineOptionException(
-                      check.canonicalName() + " may not be disabled");
-                }
-                severities.remove(check.canonicalName());
-                disabled.add(check.canonicalName());
-              }
-              case DEFAULT -> {
-                severities.put(check.canonicalName(), check.defaultSeverity());
-                disabled.remove(check.canonicalName());
-              }
-              case WARN -> {
-                // Demoting an enabled check from an error to a warning is a form of disabling
-                if (!disabled().contains(check.canonicalName())
-                    && !check.disableable()
-                    && check.defaultSeverity() == SeverityLevel.ERROR) {
-                  throw new InvalidCommandLineOptionException(
-                      check.canonicalName()
-                          + " is not disableable and may not be demoted to a warning");
-                }
-                severities.put(check.canonicalName(), SeverityLevel.WARNING);
-                disabled.remove(check.canonicalName());
-              }
-              case ERROR -> {
-                severities.put(check.canonicalName(), SeverityLevel.ERROR);
-                disabled.remove(check.canonicalName());
+            for (BugCheckerInfo check : checksByAltName.get(checkName)) {
+              overrideCheckSeverity(check, newSeverity, severities, disabled);
+            }
+          } else if (severityTarget instanceof TagName override) {
+            for (BugCheckerInfo check : checks.values()) {
+              if (check.getTags().contains(override.value())) {
+                overrideCheckSeverity(check, newSeverity, severities, disabled);
               }
             }
           }
@@ -241,6 +225,42 @@ public abstract class ScannerSupplier implements Supplier<Scanner> {
         ImmutableMap.copyOf(severities),
         ImmutableSet.copyOf(disabled),
         ErrorProneFlags.fromMap(flagsMap));
+  }
+
+  private void overrideCheckSeverity(
+      BugCheckerInfo check,
+      Severity newSeverity,
+      Map<String, SeverityLevel> severities,
+      Set<String> disabled) {
+    switch (newSeverity) {
+      case OFF -> {
+        if (!check.disableable()) {
+          throw new InvalidCommandLineOptionException(
+              check.canonicalName() + " may not be disabled");
+        }
+        severities.remove(check.canonicalName());
+        disabled.add(check.canonicalName());
+      }
+      case DEFAULT -> {
+        severities.put(check.canonicalName(), check.defaultSeverity());
+        disabled.remove(check.canonicalName());
+      }
+      case WARN -> {
+        // Demoting an enabled check from an error to a warning is a form of disabling
+        if (!disabled().contains(check.canonicalName())
+            && !check.disableable()
+            && check.defaultSeverity() == SeverityLevel.ERROR) {
+          throw new InvalidCommandLineOptionException(
+              check.canonicalName() + " is not disableable and may not be demoted to a warning");
+        }
+        severities.put(check.canonicalName(), SeverityLevel.WARNING);
+        disabled.remove(check.canonicalName());
+      }
+      case ERROR -> {
+        severities.put(check.canonicalName(), SeverityLevel.ERROR);
+        disabled.remove(check.canonicalName());
+      }
+    }
   }
 
   /**

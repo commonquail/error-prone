@@ -47,12 +47,14 @@ import com.google.errorprone.bugpatterns.ChainingConstructorIgnoresParameter;
 import com.google.errorprone.bugpatterns.ConstantField;
 import com.google.errorprone.bugpatterns.DepAnn;
 import com.google.errorprone.bugpatterns.EqualsIncompatibleType;
+import com.google.errorprone.bugpatterns.EqualsUsingHashCode;
 import com.google.errorprone.bugpatterns.LongLiteralLowerCaseSuffix;
 import com.google.errorprone.bugpatterns.MethodCanBeStatic;
 import com.google.errorprone.bugpatterns.MissingBraces;
 import com.google.errorprone.bugpatterns.PackageLocation;
 import com.google.errorprone.bugpatterns.ReferenceEquality;
 import com.google.errorprone.bugpatterns.StaticQualifiedUsingExpression;
+import com.google.errorprone.bugpatterns.UnusedTypeParameter;
 import com.google.errorprone.bugpatterns.nullness.UnnecessaryCheckNotNull;
 import com.sun.source.util.JavacTask;
 import com.sun.tools.javac.api.JavacTool;
@@ -467,7 +469,7 @@ public class ScannerSupplierTest {
   }
 
   @Test
-  public void applyOverridesSetsSeverity() {
+  public void applyOverridesSetsSeverityByCheckName() {
     ScannerSupplier ss =
         ScannerSupplier.fromBugCheckerClasses(
             BadShiftAmount.class,
@@ -486,6 +488,49 @@ public class ScannerSupplierTest {
             "ReferenceEquality", SeverityLevel.ERROR);
 
     assertScanner(overriddenScannerSupplier).hasSeverities(expected);
+  }
+
+  @Test
+  public void applyOverridesSetsSeverityByCheckTag() {
+    ScannerSupplier ss =
+        ScannerSupplier.fromBugCheckerClasses(
+            UnusedTypeParameter.class,
+            ChainingConstructorIgnoresParameter.class,
+            ReferenceEquality.class);
+    ErrorProneOptions epOptions =
+        ErrorProneOptions.processArgs(ImmutableList.of("-XepTag:FragileCode:ERROR"));
+    ScannerSupplier overriddenScannerSupplier = ss.applyOverrides(epOptions);
+
+    ImmutableMap<String, SeverityLevel> expected =
+        ImmutableMap.of(
+            "UnusedTypeParameter", SeverityLevel.WARNING,
+            "ChainingConstructorIgnoresParameter", ERROR,
+            "ReferenceEquality", SeverityLevel.ERROR);
+
+    assertScanner(overriddenScannerSupplier).hasSeverities(expected);
+  }
+
+  @Test
+  public void applyOverridesSetsSeverityLastSeen() {
+    ScannerSupplier ss =
+        ScannerSupplier.fromBugCheckerClasses(
+            UnusedTypeParameter.class,
+            ChainingConstructorIgnoresParameter.class,
+            EqualsUsingHashCode.class,
+            ReferenceEquality.class);
+    ErrorProneOptions epOptions =
+        ErrorProneOptions.processArgs(
+            ImmutableList.of(
+                "-Xep:ReferenceEquality:OFF",
+                "-XepTag:FragileCode:ERROR",
+                "-Xep:EqualsUsingHashCode:OFF"));
+    ScannerSupplier overriddenScannerSupplier = ss.applyOverrides(epOptions);
+
+    assertScanner(overriddenScannerSupplier)
+        .hasEnabledChecks(
+            UnusedTypeParameter.class,
+            ChainingConstructorIgnoresParameter.class,
+            ReferenceEquality.class);
   }
 
   @Test
@@ -530,6 +575,27 @@ public class ScannerSupplierTest {
             ReferenceEquality.class);
 
     ImmutableMap<String, SeverityLevel> expectedSeverities =
+        ImmutableMap.of(
+            "BadShiftAmount",
+            SeverityLevel.WARNING,
+            "ChainingConstructorIgnoresParameter",
+            SeverityLevel.WARNING,
+            "ReferenceEquality",
+            SeverityLevel.WARNING);
+    assertScanner(withOverrides).hasSeverities(expectedSeverities);
+
+    epOptions =
+        ErrorProneOptions.processArgs(
+            ImmutableList.of("-XepTag:FragileCode:OFF", "-XepAllDisabledChecksAsWarnings"));
+
+    withOverrides = ss.applyOverrides(epOptions);
+    assertScanner(withOverrides)
+        .hasEnabledChecks(
+            BadShiftAmount.class,
+            ChainingConstructorIgnoresParameter.class,
+            ReferenceEquality.class);
+
+    expectedSeverities =
         ImmutableMap.of(
             "BadShiftAmount",
             SeverityLevel.WARNING,

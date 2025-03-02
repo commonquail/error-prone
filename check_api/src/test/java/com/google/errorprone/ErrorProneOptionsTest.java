@@ -19,6 +19,8 @@ package com.google.errorprone;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.truth.Truth.assertThat;
+import com.google.errorprone.SeverityTarget.CheckName;
+import com.google.errorprone.SeverityTarget.TagName;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.Collections2;
@@ -71,19 +73,28 @@ public class ErrorProneOptionsTest {
   public void handlesErrorProneSeverityFlags() {
     String[] args1 = {"-Xep:Check1"};
     ErrorProneOptions options = ErrorProneOptions.processArgs(args1);
-    ImmutableMap<String, Severity> expectedSeverityMap =
-        ImmutableMap.of("Check1", Severity.DEFAULT);
+    ImmutableMap<SeverityTarget, Severity> expectedSeverityMap =
+        ImmutableMap.of(new CheckName("Check1"), Severity.DEFAULT);
     assertThat(options.getSeverityMap()).isEqualTo(expectedSeverityMap);
 
     String[] args2 = {"-Xep:Check1", "-Xep:Check2:OFF", "-Xep:Check3:WARN"};
     options = ErrorProneOptions.processArgs(args2);
     expectedSeverityMap =
-        ImmutableMap.<String, Severity>builder()
-            .put("Check1", Severity.DEFAULT)
-            .put("Check2", Severity.OFF)
-            .put("Check3", Severity.WARN)
+        ImmutableMap.<SeverityTarget, Severity>builder()
+            .put(new CheckName("Check1"), Severity.DEFAULT)
+            .put(new CheckName("Check2"), Severity.OFF)
+            .put(new CheckName("Check3"), Severity.WARN)
             .buildOrThrow();
     assertThat(options.getSeverityMap()).isEqualTo(expectedSeverityMap);
+  }
+
+  @Test
+  public void handlesErrorProneTagSeverityFlags() {
+    String[] args = {"-XepTag:Style:OFF", "-XepTag:Style:ERROR"};
+    ErrorProneOptions options = ErrorProneOptions.processArgs(args);
+    ImmutableMap<SeverityTarget, Severity> expectedTagSeverityMap =
+        ImmutableMap.of(new TagName("Style"), Severity.ERROR);
+    assertThat(options.getSeverityMap()).isEqualTo(expectedTagSeverityMap);
   }
 
   @Test
@@ -112,10 +123,10 @@ public class ErrorProneOptionsTest {
     ErrorProneOptions options = ErrorProneOptions.processArgs(args);
     String[] expectedRemainingArgs = {"-classpath", "/this/is/classpath", "-verbose"};
     assertThat(options.getRemainingArgs()).containsExactlyElementsIn(expectedRemainingArgs);
-    ImmutableMap<String, Severity> expectedSeverityMap =
-        ImmutableMap.<String, Severity>builder()
-            .put("Check1", Severity.WARN)
-            .put("Check2", Severity.ERROR)
+    ImmutableMap<SeverityTarget, Severity> expectedSeverityMap =
+        ImmutableMap.<SeverityTarget, Severity>builder()
+            .put(new CheckName("Check1"), Severity.WARN)
+            .put(new CheckName("Check2"), Severity.ERROR)
             .buildOrThrow();
     assertThat(options.getSeverityMap()).isEqualTo(expectedSeverityMap);
     ImmutableMap<String, String> expectedFlagsMap = ImmutableMap.of("Check1:Flag1", "Value1");
@@ -126,7 +137,8 @@ public class ErrorProneOptionsTest {
   public void lastSeverityFlagWins() {
     String[] args = {"-Xep:Check1:ERROR", "-Xep:Check1:OFF"};
     ErrorProneOptions options = ErrorProneOptions.processArgs(args);
-    ImmutableMap<String, Severity> expectedSeverityMap = ImmutableMap.of("Check1", Severity.OFF);
+    ImmutableMap<SeverityTarget, Severity> expectedSeverityMap =
+        ImmutableMap.of(new CheckName("Check1"), Severity.OFF);
     assertThat(options.getSeverityMap()).isEqualTo(expectedSeverityMap);
   }
 
@@ -315,8 +327,8 @@ public class ErrorProneOptionsTest {
   public void severityOrder() {
     for (Collection<String> permutation :
         Collections2.permutations(ImmutableList.of("A", "B", "C"))) {
-      ImmutableMap<String, Severity> severityMap =
-          permutation.stream().collect(toImmutableMap(x -> x, x -> Severity.ERROR));
+      ImmutableMap<SeverityTarget, Severity> severityMap =
+          permutation.stream().collect(toImmutableMap(CheckName::new, x -> Severity.ERROR));
       ErrorProneOptions options =
           ErrorProneOptions.processArgs(
               permutation.stream()
