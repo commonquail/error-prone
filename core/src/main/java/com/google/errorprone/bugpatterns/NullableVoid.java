@@ -46,7 +46,7 @@ public class NullableVoid extends BugChecker implements MethodTreeMatcher {
     if (sym.getReturnType().getKind() != TypeKind.VOID) {
       return NO_MATCH;
     }
-    var relevantAnnos = annotationsRelevantToNullness(tree.getModifiers().getAnnotations());
+    var relevantAnnos = annotationsRelevantToNullness(tree.getModifiers().getAnnotations(), state);
     if (relevantAnnos.isEmpty()) {
       return NO_MATCH;
     }

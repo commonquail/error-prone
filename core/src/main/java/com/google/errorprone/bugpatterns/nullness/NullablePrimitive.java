@@ -53,21 +53,22 @@ public class NullablePrimitive extends BugChecker
   @Override
   public Description matchAnnotatedType(AnnotatedTypeTree tree, VisitorState state) {
     Type type = ASTHelpers.getType(tree);
-    return check(type, tree.getAnnotations());
+    return check(type, tree.getAnnotations(), state);
   }
 
   @Override
   public Description matchMethod(MethodTree tree, VisitorState state) {
     MethodSymbol sym = ASTHelpers.getSymbol(tree);
-    return check(sym.getReturnType(), tree.getModifiers().getAnnotations());
+    return check(sym.getReturnType(), tree.getModifiers().getAnnotations(), state);
   }
 
   @Override
   public Description matchVariable(VariableTree tree, VisitorState state) {
-    return check(ASTHelpers.getSymbol(tree).type, tree.getModifiers().getAnnotations());
+    return check(ASTHelpers.getSymbol(tree).type, tree.getModifiers().getAnnotations(), state);
   }
 
-  private Description check(Type type, List<? extends AnnotationTree> annotations) {
+  private Description check(
+      Type type, List<? extends AnnotationTree> annotations, final VisitorState state) {
     if (type == null) {
       return NO_MATCH;
     }
@@ -75,7 +76,7 @@ public class NullablePrimitive extends BugChecker
       return NO_MATCH;
     }
     ImmutableList<AnnotationTree> annotationsRelevantToNullness =
-        NullnessAnnotations.annotationsRelevantToNullness(annotations);
+        NullnessAnnotations.annotationsRelevantToNullness(annotations, state);
     if (annotationsRelevantToNullness.isEmpty()) {
       return NO_MATCH;
     }

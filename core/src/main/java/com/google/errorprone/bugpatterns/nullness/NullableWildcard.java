@@ -58,7 +58,7 @@ public class NullableWildcard extends BugChecker implements AnnotatedTypeTreeMat
 
   Fix fix(List<? extends AnnotationTree> annotations, WildcardTree tree, VisitorState state) {
     ImmutableList<AnnotationTree> existingAnnotations =
-        NullnessAnnotations.annotationsRelevantToNullness(annotations);
+        NullnessAnnotations.annotationsRelevantToNullness(annotations, state);
     if (existingAnnotations.size() != 1) {
       return SuggestedFix.emptyFix();
     }

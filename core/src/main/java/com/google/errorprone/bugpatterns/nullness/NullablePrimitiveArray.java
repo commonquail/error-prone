@@ -88,7 +88,7 @@ public class NullablePrimitiveArray extends BugChecker
       return NO_MATCH;
     }
     ImmutableList<AnnotationTree> treeNullnessAnnos =
-        NullnessAnnotations.annotationsRelevantToNullness(allTreeAnnos);
+        NullnessAnnotations.annotationsRelevantToNullness(allTreeAnnos, state);
     if (treeNullnessAnnos.isEmpty()) {
       return NO_MATCH;
     }
@@ -110,7 +110,7 @@ public class NullablePrimitiveArray extends BugChecker
     boolean hasTypeNullnessAnnoOnArray =
         dims instanceof AnnotatedTypeTree annotatedTypeTree
             && !NullnessAnnotations.annotationsRelevantToNullness(
-                    annotatedTypeTree.getAnnotations())
+                    annotatedTypeTree.getAnnotations(), state)
                 .isEmpty();
     if (!hasDeclarationNullnessAnno && !hasTypeNullnessAnnoOnArray) {
       fix.postfixWith(

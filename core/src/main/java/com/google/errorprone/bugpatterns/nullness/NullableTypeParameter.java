@@ -56,7 +56,7 @@ public class NullableTypeParameter extends BugChecker implements TypeParameterTr
 
   Fix fix(List<? extends AnnotationTree> annotations, TypeParameterTree tree, VisitorState state) {
     ImmutableList<AnnotationTree> existingAnnotations =
-        NullnessAnnotations.annotationsRelevantToNullness(annotations);
+        NullnessAnnotations.annotationsRelevantToNullness(annotations, state);
     if (existingAnnotations.size() != 1) {
       return SuggestedFix.emptyFix();
     }

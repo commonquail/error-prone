@@ -21,6 +21,9 @@ import static javax.lang.model.element.ElementKind.TYPE_PARAMETER;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.errorprone.VisitorState;
+import com.google.errorprone.matchers.Matcher;
+import com.google.errorprone.matchers.Matchers;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
@@ -64,6 +67,9 @@ public class NullnessAnnotations {
   private static final ImmutableSet<String> FALSE_NULLNESS_ANNOTATIONS =
       ImmutableSet.of(
           "jakarta.validation.constraints.NotNull", "javax.validation.constraints.NotNull");
+  private static final Matcher<AnnotationTree> NOT_FALSE_NULLNESS_ANNOTATION_MATCHER =
+      Matchers.not(
+          Matchers.anyOf(FALSE_NULLNESS_ANNOTATIONS.stream().map(Matchers::isType).toList()));
 
   private NullnessAnnotations() {} // static methods only
 
@@ -93,9 +99,9 @@ public class NullnessAnnotations {
   }
 
   public static ImmutableList<AnnotationTree> annotationsRelevantToNullness(
-      List<? extends AnnotationTree> annotations) {
-    // Missing support for FALSE_NULLNESS_ANNOTATIONS
+      List<? extends AnnotationTree> annotations, final VisitorState state) {
     return annotations.stream()
+        .filter(a -> NOT_FALSE_NULLNESS_ANNOTATION_MATCHER.matches(a, state))
         .filter(a -> ANNOTATION_RELEVANT_TO_NULLNESS.test(simpleName(a)))
         .collect(toImmutableList());
   }
